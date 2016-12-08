@@ -4,3 +4,7 @@
 .idea/
 IgniteDemo.iml
 target/
+
+.DS_Store
+
+*.iml

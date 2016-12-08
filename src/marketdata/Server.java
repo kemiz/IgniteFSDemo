@@ -90,7 +90,7 @@ public class Server {
 
         // Set initial IP addresses.
         // Note that you can optionally specify a port or a port range.
-        ipFinder.setAddresses(Arrays.asList("192.168.1.64", "192.168.1.64:47500..47509"));
+        ipFinder.setAddresses(Arrays.asList("192.168.1.64", "192.168.1.64:47500..47509", "192.168.1.76", "192.168.1.76:47500..47509"));
 
         spi.setIpFinder(ipFinder);
 
