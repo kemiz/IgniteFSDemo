@@ -48,6 +48,7 @@ public class Client {
         String workDirectory = System.getProperty("user.home") + File.separator + "ignite";
         iCfg.setWorkDirectory(workDirectory);
         iCfg.setClientMode(true);
+        iCfg.setPeerClassLoadingEnabled(true);
 
         // start
         System.out.println();

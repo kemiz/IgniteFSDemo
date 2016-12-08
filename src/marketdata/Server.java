@@ -22,7 +22,7 @@ public class Server {
 
     private static final String NODE_NAME = "SERVER NODE";
     private static final String W6_CACHE = "W6Cache";
-    private static final int CACHE_SIZE = 5_000_000;
+    private static final int CACHE_SIZE = 5_000;
     private static final String CURRENCY_CACHE = "Currencies";
     private static final String SECTORS_CACHE = "Sectors";
     private static volatile Ignite ignite;
@@ -50,7 +50,7 @@ public class Server {
         // set work directory
         String workDirectory = System.getProperty("user.home") + File.separator + "ignite";
         iCfg.setWorkDirectory(workDirectory);
-
+        iCfg.setPeerClassLoadingEnabled(true);
         // create w6cache configuration
         CacheConfiguration<AffinityKey<Long>, FSEntity> w6Cfg = new CacheConfiguration<>();
         w6Cfg.setCacheMode(CacheMode.PARTITIONED);
