@@ -10,6 +10,8 @@ import org.apache.ignite.cache.affinity.AffinityKey;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.configuration.CacheConfiguration;
 import org.apache.ignite.configuration.IgniteConfiguration;
+import org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi;
+import org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder;
 
 import java.io.*;
 import java.util.*;
@@ -81,6 +83,19 @@ public class Server {
         sCfg.setBackups(0);
         sCfg.setCopyOnRead(false);
         sCfg.setIndexedTypes(Long.class, Sector.class);
+
+        TcpDiscoverySpi spi = new TcpDiscoverySpi();
+
+        TcpDiscoveryVmIpFinder ipFinder = new TcpDiscoveryVmIpFinder();
+
+        // Set initial IP addresses.
+        // Note that you can optionally specify a port or a port range.
+        ipFinder.setAddresses(Arrays.asList("192.168.1.64", "192.168.1.64:47500..47509"));
+
+        spi.setIpFinder(ipFinder);
+
+        // Override default discovery SPI.
+        iCfg.setDiscoverySpi(spi);
 
         iCfg.setCacheConfiguration(w6Cfg,cCfg,sCfg);
 
