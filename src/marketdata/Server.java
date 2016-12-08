@@ -22,7 +22,7 @@ public class Server {
 
     private static final String NODE_NAME = "SERVER NODE";
     private static final String W6_CACHE = "W6Cache";
-    private static final int CACHE_SIZE = 5_000;
+    private static final int CACHE_SIZE = 500_000;
     private static final String CURRENCY_CACHE = "Currencies";
     private static final String SECTORS_CACHE = "Sectors";
     private static volatile Ignite ignite;
@@ -83,19 +83,6 @@ public class Server {
         sCfg.setBackups(0);
         sCfg.setCopyOnRead(false);
         sCfg.setIndexedTypes(Long.class, Sector.class);
-
-        TcpDiscoverySpi spi = new TcpDiscoverySpi();
-
-        TcpDiscoveryVmIpFinder ipFinder = new TcpDiscoveryVmIpFinder();
-
-        // Set initial IP addresses.
-        // Note that you can optionally specify a port or a port range.
-        ipFinder.setAddresses(Arrays.asList("192.168.1.64", "192.168.1.64:47500..47509", "192.168.1.76", "192.168.1.76:47500..47509"));
-
-        spi.setIpFinder(ipFinder);
-
-        // Override default discovery SPI.
-        iCfg.setDiscoverySpi(spi);
 
         iCfg.setCacheConfiguration(w6Cfg,cCfg,sCfg);
 
