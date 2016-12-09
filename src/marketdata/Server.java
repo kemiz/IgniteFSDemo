@@ -2,6 +2,7 @@ package marketdata;
 
 
 import marketdata.model.*;
+import marketdata.model.Currency;
 import org.apache.ignite.*;
 import org.apache.ignite.cache.CacheMemoryMode;
 import org.apache.ignite.cache.CacheMode;
@@ -10,8 +11,6 @@ import org.apache.ignite.cache.affinity.AffinityKey;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.configuration.CacheConfiguration;
 import org.apache.ignite.configuration.IgniteConfiguration;
-import org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi;
-import org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder;
 
 import java.io.*;
 import java.util.*;
@@ -22,7 +21,7 @@ public class Server {
 
     private static final String NODE_NAME = "SERVER NODE";
     private static final String W6_CACHE = "W6Cache";
-    private static final int CACHE_SIZE = 500_000;
+    private static final int CACHE_SIZE = 2_000_000;
     private static final String CURRENCY_CACHE = "Currencies";
     private static final String SECTORS_CACHE = "Sectors";
     private static volatile Ignite ignite;
@@ -51,39 +50,11 @@ public class Server {
         String workDirectory = System.getProperty("user.home") + File.separator + "ignite";
         iCfg.setWorkDirectory(workDirectory);
         iCfg.setPeerClassLoadingEnabled(true);
-        // create w6cache configuration
-        CacheConfiguration<AffinityKey<Long>, FSEntity> w6Cfg = new CacheConfiguration<>();
-        w6Cfg.setCacheMode(CacheMode.PARTITIONED);
-        w6Cfg.setName(W6_CACHE);
-        w6Cfg.setMemoryMode(CacheMemoryMode.ONHEAP_TIERED);
-        w6Cfg.setCopyOnRead(false);
-        w6Cfg.setOffHeapMaxMemory(-1);
-        w6Cfg.setBackups(0);
-        w6Cfg.setCopyOnRead(false);
-        w6Cfg.setIndexedTypes(AffinityKey.class, FSEntity.class);
 
-        // create currency cache configuration
-        CacheConfiguration<Long, marketdata.model.Currency> cCfg = new CacheConfiguration<>();
-        cCfg.setCacheMode(CacheMode.REPLICATED);
-        cCfg.setName(CURRENCY_CACHE);
-        cCfg.setMemoryMode(CacheMemoryMode.ONHEAP_TIERED);
-        cCfg.setCopyOnRead(false);
-        cCfg.setOffHeapMaxMemory(-1);
-        cCfg.setBackups(0);
-        cCfg.setCopyOnRead(false);
-        cCfg.setIndexedTypes(Long.class, marketdata.model.Currency.class);
-
-        // create sectors cache configuration
-        CacheConfiguration<Long, marketdata.model.Currency> sCfg = new CacheConfiguration<>();
-        sCfg.setCacheMode(CacheMode.REPLICATED);
-        sCfg.setName(SECTORS_CACHE);
-        sCfg.setMemoryMode(CacheMemoryMode.ONHEAP_TIERED);
-        sCfg.setCopyOnRead(false);
-        sCfg.setOffHeapMaxMemory(-1);
-        sCfg.setBackups(0);
-        sCfg.setCopyOnRead(false);
-        sCfg.setIndexedTypes(Long.class, Sector.class);
-
+        // get cache configurations
+        CacheConfiguration w6Cfg = getFSEntityCacheConfiguration();
+        CacheConfiguration cCfg = getCacheConfiguration(CURRENCY_CACHE, Currency.class);
+        CacheConfiguration sCfg = getCacheConfiguration(SECTORS_CACHE, Sector.class);
         iCfg.setCacheConfiguration(w6Cfg,cCfg,sCfg);
 
         // start
@@ -122,38 +93,6 @@ public class Server {
         }
     }
 
-    public static String getRandomCountry(){
-        return Locale.getISOCountries()[new Random().nextInt(Locale.getISOCountries().length - 1)];
-    }
-
-    public static String getRandomValue(ArrayList<String> list){
-        return list.get(new Random().nextInt(list.size()));
-    }
-
-    public static ArrayList<String> getCurrencies() throws IOException {
-        FileInputStream fis = new FileInputStream(new File("data/currency_codes.txt"));
-        BufferedReader br = new BufferedReader(new InputStreamReader(fis));
-        String line = null;
-        ArrayList<String> currencies = new ArrayList<>();
-        while ((line = br.readLine()) != null) {
-            currencies.add(line);
-        }
-        br.close();
-        return currencies;
-    }
-
-    public static ArrayList<String> getSectors() throws IOException {
-        FileInputStream fis = new FileInputStream(new File("data/sectors.txt"));
-        BufferedReader br = new BufferedReader(new InputStreamReader(fis));
-        String line = null;
-        ArrayList<String> sectors = new ArrayList<>();
-        while ((line = br.readLine()) != null) {
-            sectors.add(line);
-        }
-        br.close();
-        return sectors;
-    }
-
     public static void loadCurrencyCache() throws IOException {
         IgniteCache<?, ?> cache = ignite.getOrCreateCache(CURRENCY_CACHE);
         System.out.println(String.format(">>> Loading currency cache with %d currencies...", getCurrencies().size()));
@@ -188,4 +127,63 @@ public class Server {
         System.out.println();
     }
 
+    private static CacheConfiguration getCacheConfiguration(String cacheName, Class<?> clazz) {
+        // create currency cache configuration
+        CacheConfiguration<Long, Currency> cCfg = new CacheConfiguration<>();
+        cCfg.setCacheMode(CacheMode.REPLICATED);
+        cCfg.setName(cacheName);
+        cCfg.setMemoryMode(CacheMemoryMode.ONHEAP_TIERED);
+        cCfg.setCopyOnRead(false);
+        cCfg.setOffHeapMaxMemory(-1);
+        cCfg.setBackups(0);
+        cCfg.setCopyOnRead(false);
+        cCfg.setIndexedTypes(Long.class, clazz);
+        return cCfg;
+    }
+
+    private static CacheConfiguration getFSEntityCacheConfiguration() {
+        // create w6cache configuration
+        CacheConfiguration<AffinityKey<Long>, FSEntity> w6Cfg = new CacheConfiguration<>();
+        w6Cfg.setCacheMode(CacheMode.PARTITIONED);
+        w6Cfg.setName(W6_CACHE);
+        w6Cfg.setMemoryMode(CacheMemoryMode.ONHEAP_TIERED);
+        w6Cfg.setCopyOnRead(false);
+        w6Cfg.setOffHeapMaxMemory(-1);
+        w6Cfg.setBackups(0);
+        w6Cfg.setCopyOnRead(false);
+        w6Cfg.setIndexedTypes(AffinityKey.class, FSEntity.class);
+        return w6Cfg;
+    }
+
+    public static String getRandomCountry(){
+        return getRandomValue(new ArrayList<String>(Arrays.asList(Locale.getISOCountries())));
+    }
+
+    public static String getRandomValue(ArrayList<String> list){
+        return list.get(new Random().nextInt(list.size()));
+    }
+
+    public static ArrayList<String> getCurrencies() throws IOException {
+        FileInputStream fis = new FileInputStream(new File("data/currency_codes.txt"));
+        BufferedReader br = new BufferedReader(new InputStreamReader(fis));
+        String line = null;
+        ArrayList<String> currencies = new ArrayList<>();
+        while ((line = br.readLine()) != null) {
+            currencies.add(line);
+        }
+        br.close();
+        return currencies;
+    }
+
+    public static ArrayList<String> getSectors() throws IOException {
+        FileInputStream fis = new FileInputStream(new File("data/sectors.txt"));
+        BufferedReader br = new BufferedReader(new InputStreamReader(fis));
+        String line = null;
+        ArrayList<String> sectors = new ArrayList<>();
+        while ((line = br.readLine()) != null) {
+            sectors.add(line);
+        }
+        br.close();
+        return sectors;
+    }
 }

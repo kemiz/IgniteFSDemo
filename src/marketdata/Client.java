@@ -1,11 +1,10 @@
 package marketdata;
 
 
-import marketdata.model.FSEntity;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.Ignition;
-import org.apache.ignite.cache.affinity.AffinityKey;
+import org.apache.ignite.cache.query.Query;
 import org.apache.ignite.cache.query.QueryCursor;
 import org.apache.ignite.cache.query.ScanQuery;
 import org.apache.ignite.cache.query.SqlFieldsQuery;
@@ -22,15 +21,13 @@ public class Client {
 
     private static final String NODE_NAME = "CLIENT NODE";
     private static final String CACHE_NAME = "W6Cache";
-    private static final int PAGE_SIZE = 2_000_000;
+    // The page size will affect the number of results rendered as part of the test
+    private static final int PAGE_SIZE = 50;
     private static volatile Ignite ignite;
 
     public static void main(String[] args) throws Exception {
         init();
-        scanQuery();
-        filterOnCountry();
-        filterOnCountryAndCurrency();
-        filterOnCurrencyAndGroupBySectorCount();
+        runTests();
         ignite.close();
         System.exit(0);
     }
@@ -40,8 +37,8 @@ public class Client {
 
         // set user attributes
         iCfg.setUserAttributes(Collections.unmodifiableMap(Stream.of(
-                new AbstractMap.SimpleEntry<>("nodeName", NODE_NAME))
-                .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue)))
+                        new AbstractMap.SimpleEntry<>("nodeName", NODE_NAME))
+                        .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue)))
         );
 
         // set work directory
@@ -52,7 +49,7 @@ public class Client {
 
         // start
         System.out.println();
-        System.out.println(String.format(">>> Starting cache on %s; work directory %s ...", NODE_NAME, workDirectory));
+        System.out.println(String.format(">>> Starting client with name %s; work directory %s ...", NODE_NAME, workDirectory));
         System.out.println();
         ignite = Ignition.start(iCfg);
         ClusterNode localNode = ignite.cluster().localNode();
@@ -61,66 +58,50 @@ public class Client {
         System.out.println();
     }
 
-    private static void scanQuery() {
-        IgniteCache<?, ?> cache = ignite.getOrCreateCache(CACHE_NAME);
-        ScanQuery<AffinityKey<Long>, FSEntity> scan = new ScanQuery<>();
-        scan.setPageSize(PAGE_SIZE);
-        long loadStartTime = System.currentTimeMillis();
-        cache.withKeepBinary().query(scan).iterator();
-        System.out.println(String.format(">>> Fetched %d entities in %d ms.", scan.getPageSize(),System.currentTimeMillis() - loadStartTime));
-        System.out.println();
+    private static void runTests() throws IOException {
+        // return all entities (paginated)
+        System.out.println("==========================================================================");
+        System.out.println(">>> Scan query (paginated)");
+        executeTimedQuery(CACHE_NAME, new ScanQuery());
+
+        // filter on country only
+        System.out.println("==========================================================================");
+        System.out.println(">>> Filter on country");
+        executeTimedQuery(CACHE_NAME, new SqlFieldsQuery(
+                "select * from FSEntity where ISSUECOUNTRY = ?")
+                .setArgs(
+                        Server.getRandomCountry()));
+
+        // filter on country & currency
+        System.out.println("==========================================================================");
+        System.out.println(">>> Filter on country & currency");
+        executeTimedQuery(CACHE_NAME, new SqlFieldsQuery(
+                "select * from FSEntity where ISSUECOUNTRY = ? and CURRENCYCODE = ?")
+                .setArgs(
+                        Server.getRandomCountry(),
+                        Server.getRandomValue(Server.getCurrencies())));
+
+        // filter on currency & group by sector
+        System.out.println("==========================================================================");
+        System.out.println(">>> Filter on currency & group by sector");
+        executeTimedQuery(CACHE_NAME, new SqlFieldsQuery(
+                "select SECTOR, count(SECTOR) from FSEntity where CURRENCYCODE = ? group by SECTOR")
+                .setArgs(Server.getRandomValue(Server.getCurrencies())));
     }
 
-    private static void filterOnCountry(){
-        IgniteCache<?, ?> cache = ignite.getOrCreateCache(CACHE_NAME);
-        SqlFieldsQuery sql = new SqlFieldsQuery(
-                "select ID  "
-                        + "from FSEntity where "
-                        + "ISSUECOUNTRY = ? ");
-        sql.setArgs(Server.getRandomCountry());
-        sql.setPageSize(PAGE_SIZE);
+    private static void executeTimedQuery(String cacheName, Query sqlQuery){
+        IgniteCache<?, ?> cache = ignite.getOrCreateCache(cacheName);
         long loadStartTime = System.currentTimeMillis();
-        QueryCursor<List<?>> results = cache.withKeepBinary().query(sql);
+        QueryCursor results = cache.withKeepBinary().query(sqlQuery);
         System.out.println(String.format(">>> Executed query in %d ms.",System.currentTimeMillis() - loadStartTime));
-        System.out.println(String.format("  > total entry count: %d", results.getAll().size()));
+        System.out.println(sqlQuery.toString());
+        System.out.println();
+        Iterator iterator = results.iterator();
+        int i = 0;
+        while (iterator.hasNext() & i < PAGE_SIZE){
+            System.out.println("    " + iterator.next());
+            i++;
+        }
         System.out.println();
     }
-
-    private static void filterOnCountryAndCurrency() throws IOException {
-        IgniteCache<?, ?> cache = ignite.getOrCreateCache(CACHE_NAME);
-        SqlFieldsQuery sql = new SqlFieldsQuery(
-                "select ID  "
-                        + "from FSEntity where "
-                        + "ISSUECOUNTRY = ? "
-                        + "and CURRENCYCODE = ?");
-        sql.setArgs(
-                Server.getRandomCountry(),
-                Server.getRandomValue(Server.getCurrencies()));
-        sql.setPageSize(PAGE_SIZE);
-
-        long loadStartTime = System.currentTimeMillis();
-        QueryCursor<List<?>> results = cache.withKeepBinary().query(sql);
-        System.out.println(String.format(">>> Executed query in %d ms.",System.currentTimeMillis() - loadStartTime));
-        System.out.println(String.format("  > total entry count: %d", results.getAll().size()));
-        System.out.println();
-    }
-
-    private static void filterOnCurrencyAndGroupBySectorCount() throws IOException {
-        IgniteCache<?, ?> cache = ignite.getOrCreateCache(CACHE_NAME);
-        SqlFieldsQuery sql = new SqlFieldsQuery(
-                "select SECTOR, count (SECTOR)  "
-                        + "from FSEntity where "
-                        + "CURRENCYCODE = ? "
-                        + "group by SECTOR");
-        sql.setArgs(
-                Server.getRandomValue(Server.getCurrencies()));
-        sql.setPageSize(PAGE_SIZE);
-
-        long loadStartTime = System.currentTimeMillis();
-        QueryCursor<List<?>> results = cache.withKeepBinary().query(sql);
-        System.out.println(String.format(">>> Executed query in %d ms.",System.currentTimeMillis() - loadStartTime));
-        for (List<?> result : results) System.out.println(result);
-        System.out.println();
-    }
-
 }
