@@ -1,13 +1,13 @@
 package marketdata;
 
 
+import marketdata.model.FSEntity;
+import marketdata.model.Sector;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.Ignition;
-import org.apache.ignite.cache.query.Query;
-import org.apache.ignite.cache.query.QueryCursor;
-import org.apache.ignite.cache.query.ScanQuery;
-import org.apache.ignite.cache.query.SqlFieldsQuery;
+import org.apache.ignite.cache.affinity.Affinity;
+import org.apache.ignite.cache.query.*;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.configuration.IgniteConfiguration;
 
@@ -87,6 +87,19 @@ public class Client {
         executeTimedQuery(CACHE_NAME, new SqlFieldsQuery(
                 "select SECTOR, count(SECTOR) from FSEntity where CURRENCYCODE = ? group by SECTOR")
                 .setArgs(Server.getRandomValue(Server.getCurrencies())));
+
+        // SQL join on FSEntity and Sector, filter on country
+        System.out.println("==========================================================================");
+        System.out.println(">>> Filter on currency & group by sector");
+        SqlFieldsQuery sqlFieldsQuery = new SqlFieldsQuery(
+                "SELECT FSEntity.ID,FSEntity.ISSUECOUNTRY,Sector.SECTORNAME,FSEntity.BILLINGCODE,FSEntity.CURRENCYCODE,FSEntity.PREPAYMENTTYPE,FSEntity.LIQUIDITYSCORE " +
+                        "FROM FSEntity " +
+                        "INNER JOIN \"Sectors\".Sector " +
+                        "ON FSEntity.SECTOR = Sector.ID"
+        );
+        System.out.print(sqlFieldsQuery.getSql());
+        executeTimedQuery(CACHE_NAME,sqlFieldsQuery);
+
     }
 
     private static void executeTimedQuery(String cacheName, Query sqlQuery){

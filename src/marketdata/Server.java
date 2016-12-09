@@ -21,7 +21,7 @@ public class Server {
 
     private static final String NODE_NAME = "SERVER NODE";
     private static final String W6_CACHE = "W6Cache";
-    private static final int CACHE_SIZE = 2_000_000;
+    private static final int CACHE_SIZE = 2_000;
     private static final String CURRENCY_CACHE = "Currencies";
     private static final String SECTORS_CACHE = "Sectors";
     private static volatile Ignite ignite;
@@ -29,9 +29,9 @@ public class Server {
     public static void main(String[] args) throws Exception {
         init();
         if (args.length > 0 && args[0].equals("-load")) {
-            loadCache();
             loadCurrencyCache();
             loadSectorsCache();
+            loadW6Cache();
         }
     }
 
@@ -55,7 +55,7 @@ public class Server {
         CacheConfiguration w6Cfg = getFSEntityCacheConfiguration();
         CacheConfiguration cCfg = getCacheConfiguration(CURRENCY_CACHE, Currency.class);
         CacheConfiguration sCfg = getCacheConfiguration(SECTORS_CACHE, Sector.class);
-        iCfg.setCacheConfiguration(w6Cfg,cCfg,sCfg);
+        iCfg.setCacheConfiguration(cCfg, sCfg, w6Cfg);
 
         // start
         System.out.println();
@@ -68,25 +68,26 @@ public class Server {
         System.out.println();
     }
 
-    private static void loadCache() {
-        IgniteCache<?, ?> cache = ignite.getOrCreateCache(W6_CACHE);
+    private static void loadW6Cache() {
+        IgniteCache<?, ?> w6Cache = ignite.getOrCreateCache(W6_CACHE);
+        int sectorsCacheSize = ignite.getOrCreateCache(SECTORS_CACHE).size(CachePeekMode.ALL);
         try {
             ArrayList<String> currencies = getCurrencies();
             ArrayList<String> sectors = getSectors();
             System.out.println(String.format(">>> Loading cache with %d entities...", CACHE_SIZE));
             long loadStartTime = System.currentTimeMillis();
-            try (IgniteDataStreamer<AffinityKey<Long>, FSEntity> streamer = ignite.dataStreamer(cache.getName())) {
+            try (IgniteDataStreamer<AffinityKey<Long>, FSEntity> streamer = ignite.dataStreamer(w6Cache.getName())) {
                 for (int i = 0; i < CACHE_SIZE; i++) {
                     FSEntity entity = FSEntity.createNew(
                             (long) i,
                             getRandomCountry(),
                             getRandomValue(currencies),
-                            getRandomValue(sectors));
+                            (long) new Random().nextInt(sectorsCacheSize));
                     streamer.addData(entity.key(), entity);
                 }
             }
             System.out.println(String.format(">>> Cache loaded with %d entities in %d ms.",
-                    cache.size(CachePeekMode.ALL), System.currentTimeMillis() - loadStartTime));
+                    w6Cache.size(CachePeekMode.ALL), System.currentTimeMillis() - loadStartTime));
             System.out.println();
         } catch (IOException e) {
             e.printStackTrace();

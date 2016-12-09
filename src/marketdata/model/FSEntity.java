@@ -13,7 +13,7 @@ public class FSEntity {
     @QuerySqlField
     private final String issueCountry;
     @QuerySqlField (index = true)
-    private final String sector;
+    private final Long sector;
     @QuerySqlField
     private final String billingCode;
     @QuerySqlField (index = true)
@@ -25,7 +25,7 @@ public class FSEntity {
 
     private transient AffinityKey<Long> key;
 
-    public static FSEntity createNew(Long i, String issueCountry, String currencyCode, String sector) {
+    public static FSEntity createNew(Long i, String issueCountry, String currencyCode, Long sector) {
         return new FSEntity(
                 "batch" + i,
                 i,
@@ -37,7 +37,7 @@ public class FSEntity {
                 i);
     }
 
-    private FSEntity(String batch, Long id, String issueCountry, String sector, String billingCode, String currencyCode, String prepaymentType, Long liquidityScore) {
+    private FSEntity(String batch, Long id, String issueCountry, Long sector, String billingCode, String currencyCode, String prepaymentType, Long liquidityScore) {
         this.batch = batch;
         this.id = id;
         this.issueCountry = issueCountry;
@@ -62,7 +62,7 @@ public class FSEntity {
         return issueCountry;
     }
 
-    public String getSector() {
+    public Long getSector() {
         return sector;
     }
 
