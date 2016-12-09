@@ -81,24 +81,61 @@ public class Client {
                         Server.getRandomCountry(),
                         Server.getRandomValue(Server.getCurrencies())));
 
-        // filter on currency & group by sector
+        // filter on currency & group by sector with join
         System.out.println("==========================================================================");
-        System.out.println(">>> Filter on currency & group by sector");
-        executeTimedQuery(CACHE_NAME, new SqlFieldsQuery(
-                "select SECTOR, count(SECTOR) from FSEntity where CURRENCYCODE = ? group by SECTOR")
-                .setArgs(Server.getRandomValue(Server.getCurrencies())));
+        System.out.println(">>> Filter on currency & group by sector with join");
+        SqlFieldsQuery sqlFieldsQuery = new SqlFieldsQuery(
+                "SELECT " +
+                        "Sector.SECTORNAME," +
+                        "COUNT(Sector.SECTORNAME) " +
+                        "FROM FSEntity " +
+                        "JOIN " +
+                        "\"Sectors\".Sector " +
+                        "ON " +
+                        "FSEntity.SECTOR = Sector.ID " +
+                        "GROUP BY SECTOR");
+        System.out.println();
+        executeTimedQuery(CACHE_NAME, sqlFieldsQuery);
+
+        // filter on currency & group by sector with join
+        System.out.println("==========================================================================");
+        System.out.println(">>> Filter on currency & group by sector with join");
+        sqlFieldsQuery = new SqlFieldsQuery(
+                "SELECT " +
+                        "Sector.SECTORNAME," +
+                        "COUNT(Sector.SECTORNAME) " +
+                        "FROM FSEntity " +
+                        "JOIN " +
+                        "\"Sectors\".Sector " +
+                        "ON " +
+                        "FSEntity.SECTOR = Sector.ID " +
+                        "WHERE CURRENCYCODE = ? " +
+                        "GROUP BY SECTOR"
+        ).setArgs(Server.getRandomValue(Server.getCurrencies()));
+        System.out.println();
+        executeTimedQuery(CACHE_NAME, sqlFieldsQuery);
 
         // SQL join on FSEntity and Sector, filter on country
         System.out.println("==========================================================================");
         System.out.println(">>> Filter on currency & group by sector");
-        SqlFieldsQuery sqlFieldsQuery = new SqlFieldsQuery(
-                "SELECT FSEntity.ID,FSEntity.ISSUECOUNTRY,Sector.SECTORNAME,FSEntity.BILLINGCODE,FSEntity.CURRENCYCODE,FSEntity.PREPAYMENTTYPE,FSEntity.LIQUIDITYSCORE " +
-                        "FROM FSEntity " +
-                        "INNER JOIN \"Sectors\".Sector " +
-                        "ON FSEntity.SECTOR = Sector.ID"
+        sqlFieldsQuery = new SqlFieldsQuery(
+                "SELECT " +
+                        "FSEntity.ID," +
+                        "FSEntity.ISSUECOUNTRY," +
+                        "Sector.SECTORNAME," +
+                        "FSEntity.BILLINGCODE," +
+                        "FSEntity.CURRENCYCODE," +
+                        "FSEntity.PREPAYMENTTYPE," +
+                        "FSEntity.LIQUIDITYSCORE " +
+                "FROM FSEntity " +
+                "JOIN " +
+                        "\"Sectors\".Sector " +
+                "ON " +
+                        "FSEntity.SECTOR = Sector.ID"
         );
-        System.out.print(sqlFieldsQuery.getSql());
-        executeTimedQuery(CACHE_NAME,sqlFieldsQuery);
+        System.out.println();
+        executeTimedQuery(CACHE_NAME, sqlFieldsQuery);
+
 
     }
 
