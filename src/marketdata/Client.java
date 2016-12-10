@@ -1,15 +1,16 @@
 package marketdata;
 
 
+import marketdata.model.FSEntity;
+import marketdata.model.Sector;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.Ignition;
-import org.apache.ignite.cache.query.Query;
-import org.apache.ignite.cache.query.QueryCursor;
-import org.apache.ignite.cache.query.ScanQuery;
-import org.apache.ignite.cache.query.SqlFieldsQuery;
+import org.apache.ignite.cache.affinity.Affinity;
+import org.apache.ignite.cache.query.*;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.configuration.IgniteConfiguration;
+import org.gridgain.grid.configuration.GridGainConfiguration;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,7 +35,9 @@ public class Client {
 
     private static void init() {
         IgniteConfiguration iCfg = new IgniteConfiguration();
-
+        GridGainConfiguration ggCfg = new GridGainConfiguration();
+        ggCfg.setLicenseUrl("data/gridgain-license.xml");
+        iCfg.setPluginConfigurations(ggCfg);
         // set user attributes
         iCfg.setUserAttributes(Collections.unmodifiableMap(Stream.of(
                         new AbstractMap.SimpleEntry<>("nodeName", NODE_NAME))
@@ -45,7 +48,7 @@ public class Client {
         String workDirectory = System.getProperty("user.home") + File.separator + "ignite";
         iCfg.setWorkDirectory(workDirectory);
         iCfg.setClientMode(true);
-        iCfg.setPeerClassLoadingEnabled(true);
+        iCfg.setPeerClassLoadingEnabled(false);
 
         // start
         System.out.println();
@@ -69,8 +72,8 @@ public class Client {
         System.out.println(">>> Filter on country");
         executeTimedQuery(CACHE_NAME, new SqlFieldsQuery(
                 "select * from FSEntity where ISSUECOUNTRY = ?")
-                .setArgs(
-                        Server.getRandomCountry()));
+                .setArgs(Server.getRandomCountry())
+                .setCollocated(true));
 
         // filter on country & currency
         System.out.println("==========================================================================");
@@ -79,14 +82,67 @@ public class Client {
                 "select * from FSEntity where ISSUECOUNTRY = ? and CURRENCYCODE = ?")
                 .setArgs(
                         Server.getRandomCountry(),
-                        Server.getRandomValue(Server.getCurrencies())));
+                        Server.getRandomValue(Server.getCurrencies()))
+                .setCollocated(true));
 
-        // filter on currency & group by sector
+        // filter on currency & group by sector with join
+        System.out.println("==========================================================================");
+        System.out.println(">>> Filter on currency & group by sector with join");
+        SqlFieldsQuery sqlFieldsQuery = new SqlFieldsQuery(
+                "SELECT " +
+                        "Sector.SECTORNAME," +
+                        "COUNT(Sector.SECTORNAME) " +
+                        "FROM FSEntity " +
+                        "JOIN " +
+                        "\"Sectors\".Sector " +
+                        "ON " +
+                        "FSEntity.SECTOR = Sector.ID " +
+                        "GROUP BY SECTOR")
+                .setCollocated(true);
+        System.out.println();
+        executeTimedQuery(CACHE_NAME, sqlFieldsQuery);
+
+        // filter on currency & group by sector with join
+        System.out.println("==========================================================================");
+        System.out.println(">>> Filter on currency & group by sector with join");
+        sqlFieldsQuery = new SqlFieldsQuery(
+                "SELECT " +
+                        "Sector.SECTORNAME," +
+                        "COUNT(Sector.SECTORNAME) " +
+                        "FROM FSEntity " +
+                        "JOIN " +
+                        "\"Sectors\".Sector " +
+                        "ON " +
+                        "FSEntity.SECTOR = Sector.ID " +
+                        "WHERE CURRENCYCODE = ? " +
+                        "GROUP BY SECTOR")
+                .setArgs(Server.getRandomValue(Server.getCurrencies()))
+                .setCollocated(true);
+        System.out.println();
+        executeTimedQuery(CACHE_NAME, sqlFieldsQuery);
+
+        // SQL join on FSEntity and Sector, filter on country
         System.out.println("==========================================================================");
         System.out.println(">>> Filter on currency & group by sector");
-        executeTimedQuery(CACHE_NAME, new SqlFieldsQuery(
-                "select SECTOR, count(SECTOR) from FSEntity where CURRENCYCODE = ? group by SECTOR")
-                .setArgs(Server.getRandomValue(Server.getCurrencies())));
+        sqlFieldsQuery = new SqlFieldsQuery(
+                "SELECT " +
+                        "FSEntity.ID," +
+                        "FSEntity.ISSUECOUNTRY," +
+                        "Sector.SECTORNAME," +
+                        "FSEntity.BILLINGCODE," +
+                        "FSEntity.CURRENCYCODE," +
+                        "FSEntity.PREPAYMENTTYPE," +
+                        "FSEntity.LIQUIDITYSCORE " +
+                "FROM FSEntity " +
+                "JOIN " +
+                        "\"Sectors\".Sector " +
+                "ON " +
+                        "FSEntity.SECTOR = Sector.ID")
+                .setCollocated(true);
+        System.out.println();
+        executeTimedQuery(CACHE_NAME, sqlFieldsQuery);
+
+
     }
 
     private static void executeTimedQuery(String cacheName, Query sqlQuery){

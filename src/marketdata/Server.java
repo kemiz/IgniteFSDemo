@@ -10,6 +10,7 @@ import org.apache.ignite.cache.affinity.AffinityKey;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.configuration.CacheConfiguration;
 import org.apache.ignite.configuration.IgniteConfiguration;
+import org.gridgain.grid.configuration.GridGainConfiguration;
 
 import java.io.*;
 import java.util.*;
@@ -27,13 +28,16 @@ public class Server {
     public static void main(String[] args) throws Exception {
         init();
         if (args.length > 0 && args[0].equals("-load")) {
-            loadCache();
+            loadSectorsCache();
+            loadW6Cache();
         }
     }
 
     private static void init() {
         IgniteConfiguration iCfg = new IgniteConfiguration();
-
+        GridGainConfiguration ggCfg = new GridGainConfiguration();
+        ggCfg.setLicenseUrl("data/gridgain-license.xml");
+        iCfg.setPluginConfigurations(ggCfg);
         // set user attributes
         iCfg.setUserAttributes(Collections.unmodifiableMap(Stream.of(
                 new AbstractMap.SimpleEntry<>("nodeName", NODE_NAME))
@@ -45,11 +49,12 @@ public class Server {
         // set work directory
         String workDirectory = System.getProperty("user.home") + File.separator + "ignite";
         iCfg.setWorkDirectory(workDirectory);
-        iCfg.setPeerClassLoadingEnabled(true);
+        iCfg.setPeerClassLoadingEnabled(false);
 
         // get cache configurations
         CacheConfiguration w6Cfg = getFSEntityCacheConfiguration();
-        iCfg.setCacheConfiguration(w6Cfg);
+        CacheConfiguration sCfg = getCacheConfiguration(SECTORS_CACHE, Sector.class);
+        iCfg.setCacheConfiguration(sCfg, w6Cfg);
 
         // start
         System.out.println();
@@ -62,29 +67,59 @@ public class Server {
         System.out.println();
     }
 
-    private static void loadCache() {
-        IgniteCache<?, ?> cache = ignite.getOrCreateCache(W6_CACHE);
+    private static void loadW6Cache() {
+        IgniteCache<?, ?> w6Cache = ignite.getOrCreateCache(W6_CACHE);
+        int sectorsCacheSize = ignite.getOrCreateCache(SECTORS_CACHE).size(CachePeekMode.ALL);
         try {
             ArrayList<String> currencies = getCurrencies();
-            ArrayList<String> sectors = getSectors();
             System.out.println(String.format(">>> Loading cache with %d entities...", CACHE_SIZE));
             long loadStartTime = System.currentTimeMillis();
-            try (IgniteDataStreamer<AffinityKey<Long>, FSEntity> streamer = ignite.dataStreamer(cache.getName())) {
+            try (IgniteDataStreamer<AffinityKey<Long>, FSEntity> streamer = ignite.dataStreamer(w6Cache.getName())) {
                 for (int i = 0; i < CACHE_SIZE; i++) {
                     FSEntity entity = FSEntity.createNew(
                             (long) i,
                             getRandomCountry(),
                             getRandomValue(currencies),
-                            getRandomValue(sectors));
+                            (long) new Random().nextInt(sectorsCacheSize));
                     streamer.addData(entity.key(), entity);
                 }
             }
             System.out.println(String.format(">>> Cache loaded with %d entities in %d ms.",
-                    cache.size(CachePeekMode.ALL), System.currentTimeMillis() - loadStartTime));
+                    w6Cache.size(CachePeekMode.ALL), System.currentTimeMillis() - loadStartTime));
             System.out.println();
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public static void loadSectorsCache() throws IOException {
+        IgniteCache<Long, Sector> cache = ignite.getOrCreateCache(SECTORS_CACHE);
+        System.out.println(String.format(">>> Loading " + SECTORS_CACHE + " cache with %d entries...", getSectors().size()));
+        long loadStartTime = System.currentTimeMillis();
+        try (IgniteDataStreamer<Long, Sector> streamer = ignite.dataStreamer(cache.getName())) {
+            int i = 0;
+            for (String sectorName : getSectors()) {
+                Sector sector = Sector.createNew((long) i, sectorName);
+                streamer.addData(sector.getId(), sector);
+                i++;
+            }
+        }
+        System.out.println(String.format(">>> Cache loaded with %d entities in %d ms.",
+                cache.size(CachePeekMode.ALL), System.currentTimeMillis() - loadStartTime));
+        System.out.println();
+    }
+
+    private static CacheConfiguration getCacheConfiguration(String cacheName, Class<?> clazz) {
+        // create currency cache configuration
+        CacheConfiguration<Long, Currency> cCfg = new CacheConfiguration<>();
+        cCfg.setCacheMode(CacheMode.REPLICATED);
+        cCfg.setName(cacheName);
+        cCfg.setMemoryMode(CacheMemoryMode.ONHEAP_TIERED);
+        cCfg.setOffHeapMaxMemory(-1);
+        cCfg.setBackups(0);
+        cCfg.setCopyOnRead(false);
+        cCfg.setIndexedTypes(Long.class, clazz);
+        return cCfg;
     }
 
     private static CacheConfiguration getFSEntityCacheConfiguration() {
@@ -93,7 +128,6 @@ public class Server {
         w6Cfg.setCacheMode(CacheMode.PARTITIONED);
         w6Cfg.setName(W6_CACHE);
         w6Cfg.setMemoryMode(CacheMemoryMode.ONHEAP_TIERED);
-        w6Cfg.setCopyOnRead(false);
         w6Cfg.setOffHeapMaxMemory(-1);
         w6Cfg.setBackups(0);
         w6Cfg.setCopyOnRead(false);
