@@ -12,5 +12,5 @@ This is a simple Ignite example that demonstrates loading up a cache with market
   - Inspect the client code to see the use of queries
   - Configure the `PAGE_SIZE` field to print more results on screen as part of the test
 
-## Notes
-- Currently as part of the startup and load of the server node, we create caches for Currencies and Sectors. This is intended to be used in the next iteration of the example to demonstrate local and distributed joins.
+## Data Model & SQL Queries
+- Currently as part of the startup and load of the server node, we create caches W6 and Sectors. This is intended to demonstrate local and distributed joins.
