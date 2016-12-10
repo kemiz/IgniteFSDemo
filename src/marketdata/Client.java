@@ -10,6 +10,7 @@ import org.apache.ignite.cache.affinity.Affinity;
 import org.apache.ignite.cache.query.*;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.configuration.IgniteConfiguration;
+import org.gridgain.grid.configuration.GridGainConfiguration;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,7 +35,9 @@ public class Client {
 
     private static void init() {
         IgniteConfiguration iCfg = new IgniteConfiguration();
-
+        GridGainConfiguration ggCfg = new GridGainConfiguration();
+//        ggCfg.setLicenseUrl();
+//        iCfg.setPluginConfigurations();
         // set user attributes
         iCfg.setUserAttributes(Collections.unmodifiableMap(Stream.of(
                         new AbstractMap.SimpleEntry<>("nodeName", NODE_NAME))
@@ -45,7 +48,7 @@ public class Client {
         String workDirectory = System.getProperty("user.home") + File.separator + "ignite";
         iCfg.setWorkDirectory(workDirectory);
         iCfg.setClientMode(true);
-        iCfg.setPeerClassLoadingEnabled(true);
+        iCfg.setPeerClassLoadingEnabled(false);
 
         // start
         System.out.println();
@@ -69,8 +72,8 @@ public class Client {
         System.out.println(">>> Filter on country");
         executeTimedQuery(CACHE_NAME, new SqlFieldsQuery(
                 "select * from FSEntity where ISSUECOUNTRY = ?")
-                .setArgs(
-                        Server.getRandomCountry()));
+                .setArgs(Server.getRandomCountry())
+                .setCollocated(true));
 
         // filter on country & currency
         System.out.println("==========================================================================");
@@ -79,7 +82,8 @@ public class Client {
                 "select * from FSEntity where ISSUECOUNTRY = ? and CURRENCYCODE = ?")
                 .setArgs(
                         Server.getRandomCountry(),
-                        Server.getRandomValue(Server.getCurrencies())));
+                        Server.getRandomValue(Server.getCurrencies()))
+                .setCollocated(true));
 
         // filter on currency & group by sector with join
         System.out.println("==========================================================================");
@@ -93,7 +97,8 @@ public class Client {
                         "\"Sectors\".Sector " +
                         "ON " +
                         "FSEntity.SECTOR = Sector.ID " +
-                        "GROUP BY SECTOR");
+                        "GROUP BY SECTOR")
+                .setCollocated(true);
         System.out.println();
         executeTimedQuery(CACHE_NAME, sqlFieldsQuery);
 
@@ -110,8 +115,9 @@ public class Client {
                         "ON " +
                         "FSEntity.SECTOR = Sector.ID " +
                         "WHERE CURRENCYCODE = ? " +
-                        "GROUP BY SECTOR"
-        ).setArgs(Server.getRandomValue(Server.getCurrencies()));
+                        "GROUP BY SECTOR")
+                .setArgs(Server.getRandomValue(Server.getCurrencies()))
+                .setCollocated(true);
         System.out.println();
         executeTimedQuery(CACHE_NAME, sqlFieldsQuery);
 
@@ -131,8 +137,8 @@ public class Client {
                 "JOIN " +
                         "\"Sectors\".Sector " +
                 "ON " +
-                        "FSEntity.SECTOR = Sector.ID"
-        );
+                        "FSEntity.SECTOR = Sector.ID")
+                .setCollocated(true);
         System.out.println();
         executeTimedQuery(CACHE_NAME, sqlFieldsQuery);
 
