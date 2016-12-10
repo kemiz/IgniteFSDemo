@@ -10,6 +10,7 @@ import org.apache.ignite.cache.affinity.AffinityKey;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.configuration.CacheConfiguration;
 import org.apache.ignite.configuration.IgniteConfiguration;
+import org.gridgain.grid.configuration.GridGainConfiguration;
 
 import java.io.*;
 import java.util.*;
@@ -35,7 +36,9 @@ public class Server {
 
     private static void init() {
         IgniteConfiguration iCfg = new IgniteConfiguration();
-
+        GridGainConfiguration ggCfg = new GridGainConfiguration();
+        ggCfg.setLicenseUrl("data/gridgain-license.xml");
+        iCfg.setPluginConfigurations(ggCfg);
         // set user attributes
         iCfg.setUserAttributes(Collections.unmodifiableMap(Stream.of(
                 new AbstractMap.SimpleEntry<>("nodeName", NODE_NAME))

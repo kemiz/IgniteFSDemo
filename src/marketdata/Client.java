@@ -36,8 +36,8 @@ public class Client {
     private static void init() {
         IgniteConfiguration iCfg = new IgniteConfiguration();
         GridGainConfiguration ggCfg = new GridGainConfiguration();
-//        ggCfg.setLicenseUrl();
-//        iCfg.setPluginConfigurations();
+        ggCfg.setLicenseUrl("data/gridgain-license.xml");
+        iCfg.setPluginConfigurations(ggCfg);
         // set user attributes
         iCfg.setUserAttributes(Collections.unmodifiableMap(Stream.of(
                         new AbstractMap.SimpleEntry<>("nodeName", NODE_NAME))
