@@ -20,7 +20,7 @@ public class Server {
 
     private static final String NODE_NAME = "SERVER NODE";
     private static final String W6_CACHE = "W6Cache";
-    private static final int CACHE_SIZE = 2_000;
+    private static final int CACHE_SIZE = 2_000_000;
     private static final String CURRENCY_CACHE = "Currencies";
     private static volatile Ignite ignite;
 
@@ -49,8 +49,7 @@ public class Server {
 
         // get cache configurations
         CacheConfiguration w6Cfg = getFSEntityCacheConfiguration();
-        CacheConfiguration cCfg = getCacheConfiguration(CURRENCY_CACHE, Currency.class);
-        iCfg.setCacheConfiguration(w6Cfg,cCfg);
+        iCfg.setCacheConfiguration(w6Cfg);
 
         // start
         System.out.println();
@@ -86,20 +85,6 @@ public class Server {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private static CacheConfiguration getCacheConfiguration(String cacheName, Class<?> clazz) {
-        // create currency cache configuration
-        CacheConfiguration<Long, Currency> cCfg = new CacheConfiguration<>();
-        cCfg.setCacheMode(CacheMode.REPLICATED);
-        cCfg.setName(cacheName);
-        cCfg.setMemoryMode(CacheMemoryMode.ONHEAP_TIERED);
-        cCfg.setCopyOnRead(false);
-        cCfg.setOffHeapMaxMemory(-1);
-        cCfg.setBackups(0);
-        cCfg.setCopyOnRead(false);
-        cCfg.setIndexedTypes(Long.class, clazz);
-        return cCfg;
     }
 
     private static CacheConfiguration getFSEntityCacheConfiguration() {
