@@ -2,7 +2,6 @@ package marketdata;
 
 
 import marketdata.model.*;
-import marketdata.model.Currency;
 import org.apache.ignite.*;
 import org.apache.ignite.cache.CacheMemoryMode;
 import org.apache.ignite.cache.CacheMode;
@@ -21,17 +20,14 @@ public class Server {
 
     private static final String NODE_NAME = "SERVER NODE";
     private static final String W6_CACHE = "W6Cache";
-    private static final int CACHE_SIZE = 2_000_000;
+    private static final int CACHE_SIZE = 2_000;
     private static final String CURRENCY_CACHE = "Currencies";
-    private static final String SECTORS_CACHE = "Sectors";
     private static volatile Ignite ignite;
 
     public static void main(String[] args) throws Exception {
         init();
         if (args.length > 0 && args[0].equals("-load")) {
             loadCache();
-            loadCurrencyCache();
-            loadSectorsCache();
         }
     }
 
@@ -54,8 +50,7 @@ public class Server {
         // get cache configurations
         CacheConfiguration w6Cfg = getFSEntityCacheConfiguration();
         CacheConfiguration cCfg = getCacheConfiguration(CURRENCY_CACHE, Currency.class);
-        CacheConfiguration sCfg = getCacheConfiguration(SECTORS_CACHE, Sector.class);
-        iCfg.setCacheConfiguration(w6Cfg,cCfg,sCfg);
+        iCfg.setCacheConfiguration(w6Cfg,cCfg);
 
         // start
         System.out.println();
@@ -91,40 +86,6 @@ public class Server {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    public static void loadCurrencyCache() throws IOException {
-        IgniteCache<?, ?> cache = ignite.getOrCreateCache(CURRENCY_CACHE);
-        System.out.println(String.format(">>> Loading currency cache with %d currencies...", getCurrencies().size()));
-        long loadStartTime = System.currentTimeMillis();
-        try (IgniteDataStreamer<Long, marketdata.model.Currency> streamer = ignite.dataStreamer(cache.getName())) {
-            int i = 0;
-            for (String currencyCode : getCurrencies()) {
-                marketdata.model.Currency currency = marketdata.model.Currency.createNew((long) i, currencyCode);
-                streamer.addData(currency.getId(), currency);
-                i++;
-            }
-        }
-        System.out.println(String.format(">>> Cache loaded with %d entities in %d ms.",
-                cache.size(CachePeekMode.ALL), System.currentTimeMillis() - loadStartTime));
-        System.out.println();
-    }
-
-    public static void loadSectorsCache() throws IOException {
-        IgniteCache<?, ?> cache = ignite.getOrCreateCache(SECTORS_CACHE);
-        System.out.println(String.format(">>> Loading " + SECTORS_CACHE + " cache with %d currencies...", getSectors().size()));
-        long loadStartTime = System.currentTimeMillis();
-        try (IgniteDataStreamer<Long, Sector> streamer = ignite.dataStreamer(cache.getName())) {
-            int i = 0;
-            for (String sectorName : getSectors()) {
-                Sector sector = Sector.createNew((long) i, sectorName);
-                streamer.addData(sector.getId(), sector);
-                i++;
-            }
-        }
-        System.out.println(String.format(">>> Cache loaded with %d entities in %d ms.",
-                cache.size(CachePeekMode.ALL), System.currentTimeMillis() - loadStartTime));
-        System.out.println();
     }
 
     private static CacheConfiguration getCacheConfiguration(String cacheName, Class<?> clazz) {
