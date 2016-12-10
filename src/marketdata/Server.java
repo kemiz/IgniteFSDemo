@@ -50,7 +50,7 @@ public class Server {
         // set work directory
         String workDirectory = System.getProperty("user.home") + File.separator + "ignite";
         iCfg.setWorkDirectory(workDirectory);
-        iCfg.setPeerClassLoadingEnabled(true);
+        iCfg.setPeerClassLoadingEnabled(false);
 
         // get cache configurations
         CacheConfiguration w6Cfg = getFSEntityCacheConfiguration();
