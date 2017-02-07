@@ -149,10 +149,10 @@ public class Client {
         IgniteCache<?, ?> cache = ignite.getOrCreateCache(cacheName);
         long loadStartTime = System.currentTimeMillis();
         QueryCursor results = cache.withKeepBinary().query(sqlQuery);
-        System.out.println(String.format(">>> Executed query in %d ms.",System.currentTimeMillis() - loadStartTime));
         System.out.println(sqlQuery.toString());
         System.out.println();
         Iterator iterator = results.iterator();
+        System.out.println(String.format(">>> Executed query in %d ms.",System.currentTimeMillis() - loadStartTime));
         int i = 0;
         while (iterator.hasNext() & i < PAGE_SIZE){
             System.out.println("    " + iterator.next());
